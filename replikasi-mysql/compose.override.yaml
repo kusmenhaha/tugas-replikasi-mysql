@@ -1,0 +1,18 @@
+services:
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOSTS: "mysql-source,mysql-replica"
+      PMA_PORTS: "3306,3306"
+      PMA_VERBOSES: "Source,Replica"
+    depends_on:
+      mysql-source:
+        condition: service_healthy
+      mysql-replica:
+        condition: service_started
+    networks:
+      - replication-net
