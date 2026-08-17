@@ -1,0 +1,25 @@
+VALIDASI PAKET TUGAS REPLIKASI DATABASE
+Tanggal: 17 Agustus 2026
+
+Pemeriksaan yang telah dilakukan:
+1. compose.yaml berhasil diparsing sebagai YAML.
+2. Layanan mysql-source dan mysql-replica terdefinisi.
+3. Semua skrip Bash lolos pemeriksaan sintaks `bash -n`.
+4. Laporan DOCX berhasil dibuka sebagai paket OOXML tanpa error.
+5. Laporan berhasil dirender menjadi 7 halaman dan seluruh halaman diperiksa.
+6. Tidak ditemukan teks terpotong, objek bertumpuk, atau tabel keluar halaman.
+7. .devcontainer/devcontainer.json berhasil diparsing sebagai JSON.
+8. Skrip codespaces-start.sh dan post-create.sh lolos pemeriksaan sintaks Bash.
+9. Parameter GTID dipasang langsung sebagai argumen mysqld dalam compose.yaml,
+   sehingga tidak bergantung pada permission file konfigurasi di Codespaces.
+10. Semua koneksi MySQL internal dipaksa ke IPv4 127.0.0.1 agar tidak
+    tersambung ke ::1 dan ditolak oleh akun root lokal.
+
+Catatan runtime:
+Lingkungan pembuatan paket tidak menyediakan Docker daemon. Oleh karena itu,
+eksekusi dua server MySQL tidak diklaim telah dilakukan di sini. Buat GitHub
+Codespace dari repositori, lalu jalankan:
+
+  bash scripts/codespaces-start.sh
+
+pada komputer dengan Docker untuk menghasilkan bukti runtime aktual.

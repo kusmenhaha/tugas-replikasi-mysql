@@ -1,0 +1,72 @@
+name: praktikum-replikasi-mysql
+
+services:
+  mysql-source:
+    image: mysql:8.4
+    container_name: mysql-source
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-RootPass123!}
+    ports:
+      - "3307:3306"
+    command:
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --binlog-expire-logs-seconds=604800
+      - --sync-binlog=1
+      - --innodb-flush-log-at-trx-commit=1
+    volumes:
+      - source_data:/var/lib/mysql
+      - ./sql/01-init-source.sql:/docker-entrypoint-initdb.d/01-init-source.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks:
+      - replication-net
+
+  mysql-replica:
+    image: mysql:8.4
+    container_name: mysql-replica
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-RootPass123!}
+    ports:
+      - "3308:3306"
+    command:
+      - --server-id=2
+      - --relay-log=relay-bin
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+      - --log-replica-updates=ON
+      - --read-only=ON
+      - --super-read-only=ON
+      - --skip-replica-start=ON
+    volumes:
+      - replica_data:/var/lib/mysql
+    depends_on:
+      mysql-source:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks:
+      - replication-net
+
+volumes:
+  source_data:
+  replica_data:
+
+networks:
+  replication-net:
+    driver: bridge

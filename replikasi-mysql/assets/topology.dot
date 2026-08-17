@@ -1,0 +1,7 @@
+digraph replication {
+  graph [rankdir=LR, bgcolor="transparent", pad="0.2", nodesep="0.7"];
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=12, margin="0.16,0.10", color="#2E74B5"];
+  source [label="MySQL Source\nport host: 3307\nserver-id: 1", fillcolor="#E8F1FA"];
+  replica [label="MySQL Replica\nport host: 3308\nserver-id: 2\nread-only", fillcolor="#EEF6EE", color="#3E7C59"];
+  source -> replica [label=" binary log + GTID ", fontname="Arial", fontsize=10, color="#4F6272", fontcolor="#4F6272", penwidth=1.8];
+}
