@@ -1,0 +1,341 @@
+URUTAN PRAKTIKUM REPLIKASI MYSQL DI GITHUB CODESPACES
+=====================================================
+
+Tujuan:
+Membuat dua server MySQL, yaitu source dan replica. Perubahan pada source
+disalin otomatis ke replica menggunakan GTID. Replica dibuat read-only dan
+phpMyAdmin digunakan sebagai tampilan GUI.
+
+CATATAN PENTING
+---------------
+1. Semua perintah dijalankan di terminal GitHub Codespaces, bukan laptop kantor.
+2. Salin hanya isi perintah. Jangan menyalin teks prompt seperti:
+   @kusmenhaha ➜ ... $
+3. Port 3307 dan 3308 adalah port MySQL, bukan website. Browser akan menampilkan
+   502 jika port tersebut dibuka sebagai halaman web.
+4. Tampilan phpMyAdmin dibuka melalui port 8080.
+5. Password dalam panduan ini hanya untuk demonstrasi/praktikum.
+
+
+LANGKAH 1 - MASUK KE FOLDER PROYEK
+----------------------------------
+
+cd /workspaces/tugas-replikasi-mysql/replikasi-mysql
+
+
+LANGKAH 2 - BUAT FILE KONFIGURASI PASSWORD
+------------------------------------------
+
+printf '%s\n' \
+  'MYSQL_ROOT_PASSWORD=RootPass123!' \
+  'REPLICATION_PASSWORD=ReplicaPass123!' > .env
+
+grep -qxF '.env' .gitignore 2>/dev/null || \
+  printf '%s\n' '.env' >> .gitignore
+
+
+LANGKAH 3 - TAMBAHKAN PHPMYADMIN
+--------------------------------
+
+Salin seluruh blok berikut ke terminal:
+
+tee compose.override.yaml >/dev/null <<'YAML'
+services:
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOSTS: "mysql-source,mysql-replica"
+      PMA_PORTS: "3306,3306"
+      PMA_VERBOSES: "Source,Replica"
+    depends_on:
+      mysql-source:
+        condition: service_healthy
+      mysql-replica:
+        condition: service_started
+    networks:
+      - replication-net
+YAML
+
+
+LANGKAH 4 - MULAI BENAR-BENAR DARI NOL (OPSIONAL)
+-------------------------------------------------
+
+PERINGATAN: perintah berikut menghapus container dan seluruh data praktikum
+lama. Gunakan jika ingin mengulang praktikum dari awal.
+
+docker compose down -v --remove-orphans
+
+
+LANGKAH 5 - JALANKAN REPLIKASI
+------------------------------
+
+bash scripts/codespaces-start.sh
+
+Indikator hasil yang benar:
+
+GTID aktif: source=ON (server-id=1), replica=ON (server-id=2).
+Replica_IO_Running: Yes
+Replica_SQL_Running: Yes
+Seconds_Behind_Source: 0
+Last_IO_Error:
+Last_SQL_Error:
+BERHASIL: data tersalin dan replica bersifat read-only.
+
+Keterangan:
+- Replica_IO_Running = Yes berarti replica terhubung dan membaca log source.
+- Replica_SQL_Running = Yes berarti transaksi berhasil diterapkan di replica.
+- Seconds_Behind_Source = 0 berarti replica sudah menyusul source.
+- Last_IO_Error dan Last_SQL_Error harus kosong.
+
+
+LANGKAH 6 - BUAT AKUN PHPMYADMIN
+--------------------------------
+
+docker compose exec -T \
+  -e 'MYSQL_PWD=RootPass123!' \
+  mysql-source \
+  mysql -uroot --protocol=socket <<'SQL'
+CREATE USER IF NOT EXISTS 'pma_user'@'%' IDENTIFIED BY 'PmaPass123!';
+ALTER USER 'pma_user'@'%' IDENTIFIED BY 'PmaPass123!';
+GRANT ALL PRIVILEGES ON toko_db.* TO 'pma_user'@'%';
+GRANT REPLICATION CLIENT ON *.* TO 'pma_user'@'%';
+FLUSH PRIVILEGES;
+SQL
+
+Akun tersebut dibuat pada source dan akan ikut direplikasi ke replica.
+
+
+LANGKAH 7 - PERIKSA CONTAINER DAN JARINGAN
+------------------------------------------
+
+docker compose ps
+
+Container yang harus tampil:
+- mysql-source
+- mysql-replica
+- phpmyadmin
+
+Periksa DNS antar-container:
+
+docker compose exec phpmyadmin getent hosts mysql-source
+docker compose exec phpmyadmin getent hosts mysql-replica
+
+Kedua perintah harus menampilkan alamat jaringan masing-masing server.
+
+
+LANGKAH 8 - BUKA PHPMYADMIN
+---------------------------
+
+1. Buka tab Ports di GitHub Codespaces.
+2. Cari port 8080.
+3. Pastikan Visibility tetap Private.
+4. Klik ikon browser pada port 8080.
+
+Login ke source:
+
+Server        : Source
+Nama Pengguna : pma_user
+Kata Sandi    : PmaPass123!
+
+Login ke replica:
+
+Server        : Replica
+Nama Pengguna : pma_user
+Kata Sandi    : PmaPass123!
+
+Setelah masuk, buka:
+
+toko_db -> produk -> Browse/Jelajahi
+
+
+LANGKAH 9 - PENGUJIAN MANUAL MELALUI TERMINAL
+---------------------------------------------
+
+Masuk ke source:
+
+docker compose exec mysql-source mysql -uroot -p
+
+Masukkan password:
+
+RootPass123!
+
+Di prompt mysql>, jalankan:
+
+SELECT @@hostname AS server,
+       @@server_id AS server_id,
+       @@gtid_mode AS gtid,
+       @@read_only AS read_only,
+       @@super_read_only AS super_read_only;
+
+USE toko_db;
+
+INSERT INTO produk (nama_produk, harga, stok)
+VALUES ('Produk Demo Presentasi', 75000, 10);
+
+SELECT * FROM produk
+WHERE nama_produk = 'Produk Demo Presentasi';
+
+exit;
+
+Masuk ke replica:
+
+docker compose exec mysql-replica mysql -uroot -p
+
+Di prompt mysql>, jalankan:
+
+USE toko_db;
+
+SELECT * FROM produk
+WHERE nama_produk = 'Produk Demo Presentasi';
+
+SHOW REPLICA STATUS\G
+
+Uji penulisan langsung ke replica:
+
+INSERT INTO produk (nama_produk, harga, stok)
+VALUES ('Tes Tulis Replica', 1000, 1);
+
+Perintah INSERT terakhir harus ditolak karena replica bersifat read-only.
+
+Keluar dari MySQL:
+
+exit;
+
+
+LANGKAH 10 - BUKTI YANG DIKUMPULKAN
+-----------------------------------
+
+Ambil screenshot yang memperlihatkan:
+1. GTID source dan replica bernilai ON.
+2. Replica_IO_Running: Yes.
+3. Replica_SQL_Running: Yes.
+4. Seconds_Behind_Source: 0.
+5. Last_IO_Error dan Last_SQL_Error kosong.
+6. Data yang sama pada source dan replica.
+7. Pesan BERHASIL: data tersalin dan replica bersifat read-only.
+8. Tabel produk pada phpMyAdmin Source.
+9. Tabel produk pada phpMyAdmin Replica.
+10. Error ketika mencoba menulis langsung ke replica.
+
+
+URUTAN PENJELASAN SAAT PRESENTASI
+---------------------------------
+
+1. Pengertian
+   Replikasi database adalah proses menyalin perubahan data dari database utama
+   ke database lain secara otomatis.
+
+2. Arsitektur
+   Praktikum menggunakan dua server MySQL:
+   - mysql-source sebagai database utama dan tempat penulisan data.
+   - mysql-replica sebagai salinan database dan tempat pembacaan cadangan.
+
+3. Cara kerja
+   Perubahan pada source dicatat pada binary log. GTID memberikan identitas unik
+   pada setiap transaksi. Thread I/O replica mengambil transaksi dari source,
+   kemudian thread SQL menerapkannya pada replica.
+
+4. Hasil pengujian
+   Data unik dimasukkan pada source dan berhasil muncul dengan nilai yang sama
+   pada replica. Status thread I/O dan SQL bernilai Yes, sedangkan keterlambatan
+   akhirnya bernilai nol.
+
+5. Perlindungan replica
+   Replica dikonfigurasi menggunakan super_read_only. Penulisan langsung dari
+   pengguna ditolak, tetapi perubahan yang berasal dari thread replikasi tetap
+   dapat diterapkan.
+
+6. Fungsi phpMyAdmin
+   phpMyAdmin hanya berfungsi sebagai tampilan GUI untuk melihat database dan
+   tabel. Proses replikasi tetap dilakukan oleh MySQL, bukan oleh phpMyAdmin.
+
+
+CONTOH NARASI PRESENTASI
+------------------------
+
+Praktikum ini menggunakan dua server MySQL di GitHub Codespaces, yaitu source
+dan replica. Source menjadi tempat penulisan utama, sedangkan replica menerima
+salinan perubahan secara otomatis. Replikasi menggunakan GTID sehingga setiap
+transaksi mempunyai identitas unik dan replica dapat mengetahui transaksi yang
+sudah atau belum diterapkan. Hasil pengujian menunjukkan bahwa data yang
+dimasukkan pada source muncul dengan nilai yang sama pada replica. Status
+Replica_IO_Running dan Replica_SQL_Running bernilai Yes, keterlambatan akhirnya
+bernilai nol, serta tidak terdapat error I/O maupun SQL. Penulisan langsung ke
+replica juga ditolak karena replica dikonfigurasi read-only. Dengan demikian,
+replikasi database berhasil dan konsistensi data antara source dan replica
+terjaga. phpMyAdmin digunakan untuk memperlihatkan data pada kedua server melalui
+antarmuka web.
+
+
+MENYIMPAN PERUBAHAN KE GITHUB
+-----------------------------
+
+git status
+git add compose.override.yaml .gitignore
+git commit -m "Tambahkan phpMyAdmin untuk demonstrasi replikasi"
+git push origin main
+
+Jangan menambahkan file .env ke Git karena file tersebut berisi password lokal.
+
+
+MENGHENTIKAN PRAKTIKUM
+----------------------
+
+Menghentikan container tanpa menghapus data:
+
+docker compose down
+
+Menghapus container beserta seluruh data praktikum:
+
+docker compose down -v --remove-orphans
+
+PERINGATAN: opsi -v menghapus volume dan data praktikum secara permanen.
+
+
+PEMECAHAN MASALAH SINGKAT
+-------------------------
+
+1. Permission denied saat menjalankan skrip:
+
+   Gunakan:
+   bash scripts/codespaces-start.sh
+
+2. Browser menampilkan HTTP 502 pada port 3307 atau 3308:
+
+   Itu normal karena kedua port tersebut menggunakan protokol MySQL, bukan HTTP.
+   Gunakan port 8080 untuk phpMyAdmin.
+
+3. Host mysql-source tidak ditemukan dari phpMyAdmin:
+
+   Pastikan phpMyAdmin dikelola oleh Compose:
+   docker compose up -d phpmyadmin
+
+   Kemudian periksa:
+   docker compose exec phpmyadmin getent hosts mysql-source
+   docker compose exec phpmyadmin getent hosts mysql-replica
+
+4. Access denied pada replica setelah mengubah konfigurasi lama:
+
+   Pastikan opsi --read-only=ON dan --super-read-only=ON tidak dipasang ketika
+   replica pertama kali diinisialisasi. Mode tersebut harus diaktifkan oleh
+   skrip setelah konfigurasi replikasi selesai. Setelah memperbaiki konfigurasi,
+   reset volume satu kali:
+   docker compose down -v --remove-orphans
+   bash scripts/codespaces-start.sh
+
+5. Perintah Git salah ketik:
+
+   Gunakan:
+   git push origin main
+
+   Bukan:
+   git psh origin main
+   git push origin maiun
+
+=====================================================
+SELESAI
+=====================================================
