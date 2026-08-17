@@ -26,7 +26,7 @@ mysql_service() {
   local service="$1"
   shift
   "${COMPOSE[@]}" exec -T -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "$service" \
-    mysql -h 127.0.0.1 -uroot --protocol=tcp "$@"
+    mysql -uroot --protocol=socket "$@"
 }
 
 TOKEN="uji-$(date +%s)"

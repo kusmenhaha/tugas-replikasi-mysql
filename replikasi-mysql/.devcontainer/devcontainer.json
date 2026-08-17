@@ -1,0 +1,24 @@
+{
+  "name": "Praktikum Replikasi MySQL",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:4": {
+      "version": "latest",
+      "moby": true,
+      "dockerDashComposeVersion": "v2"
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "remoteUser": "vscode",
+  "forwardPorts": [3307, 3308],
+  "portsAttributes": {
+    "3307": {
+      "label": "MySQL Source",
+      "onAutoForward": "silent"
+    },
+    "3308": {
+      "label": "MySQL Replica",
+      "onAutoForward": "silent"
+    }
+  }
+}

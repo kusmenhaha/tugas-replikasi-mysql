@@ -30,12 +30,12 @@ fi
 
 mysql_source() {
   "${COMPOSE[@]}" exec -T -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql-source \
-    mysql -h 127.0.0.1 -uroot --protocol=tcp "$@"
+    mysql -uroot --protocol=socket "$@"
 }
 
 mysql_replica() {
   "${COMPOSE[@]}" exec -T -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql-replica \
-    mysql -h 127.0.0.1 -uroot --protocol=tcp "$@"
+    mysql -uroot --protocol=socket "$@"
 }
 
 wait_for_mysql() {
@@ -43,7 +43,7 @@ wait_for_mysql() {
   local attempt
   for attempt in $(seq 1 60); do
     if "${COMPOSE[@]}" exec -T "$service" \
-      mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --silent \
+      mysqladmin ping -uroot --protocol=socket -p"$MYSQL_ROOT_PASSWORD" --silent \
       >/dev/null 2>&1; then
       return 0
     fi
