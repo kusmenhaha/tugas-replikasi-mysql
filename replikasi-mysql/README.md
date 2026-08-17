@@ -35,7 +35,7 @@ bash scripts/codespaces-start.sh
 
 Panduan bergambar langkah demi langkah tersedia pada `CARA_GITHUB_CODESPACES.md`.
 
-Koneksi internal pada skrip menggunakan IPv4 `127.0.0.1` untuk mencegah galat `Host '::1' is not allowed to connect` di Codespaces.
+Koneksi administrasi di dalam container menggunakan Unix socket. Mode `super_read_only` pada replica baru diaktifkan setelah inisialisasi dan konfigurasi replikasi selesai, lalu disimpan agar tetap aktif setelah restart. Alamat IPv4 pada contoh koneksi manual tetap digunakan untuk mengakses port container dari terminal Codespaces.
 
 ## Cara manual di terminal Codespaces
 

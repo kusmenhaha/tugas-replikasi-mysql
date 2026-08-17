@@ -42,8 +42,8 @@ wait_for_mysql() {
   local service="$1"
   local attempt
   for attempt in $(seq 1 60); do
-    if "${COMPOSE[@]}" exec -T "$service" \
-      mysqladmin ping -uroot --protocol=socket -p"$MYSQL_ROOT_PASSWORD" --silent \
+    if "${COMPOSE[@]}" exec -T -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "$service" \
+      mysql -uroot --protocol=socket -Nse "SELECT 1" \
       >/dev/null 2>&1; then
       return 0
     fi
@@ -95,6 +95,8 @@ SQL
 echo "Menghubungkan replica ke source menggunakan GTID auto-positioning..."
 mysql_replica -e "STOP REPLICA;" >/dev/null 2>&1 || true
 mysql_replica <<SQL
+SET GLOBAL super_read_only=OFF;
+SET GLOBAL read_only=OFF;
 RESET REPLICA ALL;
 CHANGE REPLICATION SOURCE TO
   SOURCE_HOST='mysql-source',
@@ -104,6 +106,7 @@ CHANGE REPLICATION SOURCE TO
   SOURCE_AUTO_POSITION=1,
   GET_SOURCE_PUBLIC_KEY=1;
 START REPLICA;
+SET PERSIST super_read_only=ON;
 SQL
 
 echo "Menunggu thread I/O dan SQL aktif..."

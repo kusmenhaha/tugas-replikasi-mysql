@@ -12,8 +12,12 @@ Pemeriksaan yang telah dilakukan:
 8. Skrip codespaces-start.sh dan post-create.sh lolos pemeriksaan sintaks Bash.
 9. Parameter GTID dipasang langsung sebagai argumen mysqld dalam compose.yaml,
    sehingga tidak bergantung pada permission file konfigurasi di Codespaces.
-10. Semua koneksi MySQL internal dipaksa ke IPv4 127.0.0.1 agar tidak
-    tersambung ke ::1 dan ditolak oleh akun root lokal.
+10. Semua koneksi administrasi MySQL di dalam container memakai Unix socket
+    agar akun root@localhost tidak ditolak sebagai host ::1 atau 127.0.0.1.
+11. Skrip tetap berjalan dengan kredensial demonstrasi bawaan jika file
+    tersembunyi .env.example tidak ikut terunggah ke GitHub.
+12. Mode super_read_only replica diaktifkan setelah inisialisasi dan disimpan
+    melalui SET PERSIST, sehingga tidak mengganggu pembuatan akun root awal.
 
 Catatan runtime:
 Lingkungan pembuatan paket tidak menyediakan Docker daemon. Oleh karena itu,

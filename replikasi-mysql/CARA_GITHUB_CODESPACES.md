@@ -49,7 +49,7 @@ Opsi `-v` menghapus data praktikum lama. Jangan gunakan perintah tersebut untuk 
 
 Jika perintah dengan awalan `./` pernah menampilkan `Permission denied`, jalankan skrip dengan `bash` seperti contoh di atas. Cara ini tidak memerlukan izin executable pada file.
 
-Jika muncul `Host '::1' is not allowed to connect`, berarti klien MySQL mencoba IPv6. Paket ini memaksa koneksi internal ke IPv4 `127.0.0.1`; gunakan versi paket terbaru atau tambahkan opsi `-h 127.0.0.1` pada perintah klien MySQL di kedua skrip.
+Jika muncul `Host '::1' is not allowed to connect`, `Host '127.0.0.1' is not allowed to connect`, atau `Access denied for user 'root'@'localhost'` khusus pada replica, gunakan versi paket terbaru dan reset volume sekali. Paket terbaru memakai Unix socket serta baru mengaktifkan `super_read_only` setelah inisialisasi replica selesai.
 
 Skrip tersebut akan:
 
